@@ -5,7 +5,7 @@ import json
 import jwt_helper
 import jwt.exceptions
 
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, make_response
 
 app = Flask(__name__)
 response_headers = {
@@ -26,21 +26,26 @@ def login():
 
     # check_login()
     subject = request.form['psid']
-    bearer_response = jwt_helper.gen_tokens(subject)
-    return Response(json.dumps(bearer_response), status=200, headers=response_headers)
+    refresh_token, access_token = jwt_helper.gen_tokens(subject)
+    resp = jwt_helper.make_token_response(access_token, refresh_token)
+    return resp
 
 @app.route('/token', methods=['POST'])
 @jwt_helper.authorizer_refresh
 def refresh_token():
+    """
+    authorizer_refresh already checks validity of refresh token. 
+    Here we perform additional checks and return the tokens
+    """
 
-    enc_token = jwt_helper.get_token_from_headers(request.headers)
-    jwt_headers, jwt_content = jwt_helper.decode(enc_token, token_type='refresh')
+    enc_token = jwt_helper.get_token_from_cookie(cookies=request.cookies, key='refToken')
+    __, jwt_content = jwt_helper.decode(token=enc_token, token_type='refresh')
 
     # check_jti()
     subject = jwt_content['sub']
-    bearer_response = jwt_helper.gen_tokens(subject)
-
-    return Response(json.dumps(bearer_response), status=200, headers=response_headers)
+    refresh_token, access_token = jwt_helper.gen_tokens(subject)
+    resp = jwt_helper.make_token_response(access_token, refresh_token)
+    return resp
 
 if __name__ == '__main_':
 

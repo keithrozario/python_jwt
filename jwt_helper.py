@@ -3,7 +3,7 @@ import uuid
 import json
 
 import jwt
-from flask import request, redirect, url_for, Response
+from flask import request, redirect, url_for, Response, make_response
 from functools import wraps
 
 
@@ -47,14 +47,10 @@ def gen_tokens(subject):
         'aud': issuer
     }
 
-    response = {
-        "token_type": "Bearer",
-        "access_token": sign_token(access_token).decode('ascii'),
-        "expires_in" : access_token_duration,
-        "refresh_token": sign_token(refresh_token).decode('ascii')
-    }
-
-    return response
+    signed_access_token = sign_token(access_token).decode('ascii')
+    signed_refresh_token = sign_token(refresh_token).decode('ascii')
+    
+    return signed_refresh_token, signed_access_token 
 
 def get_rsa_public_key(jwt_headers=None):
     """ Gets the public key """
@@ -78,7 +74,17 @@ def get_token_from_headers(headers):
     """
     try:
         authorization_header = headers['Authorization']
-        enc_token = authorization_header[7:] 
+        enc_token = authorization_header.split(" ")[1]
+    except KeyError:
+        return False
+    return enc_token
+
+def get_token_from_cookie(cookies, key='accToken'):
+    """
+    Extracts token from 'accToken' cookie
+    """
+    try:
+        enc_token = cookies.get(key)
     except KeyError:
         return False
     return enc_token
@@ -116,13 +122,14 @@ def authorizer(f):
     def decorated_function(*args, **kwargs):
         error_response = Response("", status=400)
         expired_token_response = Response("",  status=401)
+        unknown_cookies = Response(request.cookies, status=405)
 
-        enc_token = get_token_from_headers(request.headers)
+        enc_token = get_token_from_cookie(request.cookies, key='accToken')
         if not enc_token:
             return redirect(url_for('index'))
 
         try:
-            jwt_headers, jwt_content = decode(enc_token, token_type='access')
+            decode(enc_token, token_type='access')
         except (jwt.exceptions.InvalidSignatureError, 
                 jwt.exceptions.InvalidAlgorithmError, 
                 jwt.exceptions.InvalidIssuerError):
@@ -140,20 +147,38 @@ def authorizer(f):
     return decorated_function
 
 def authorizer_refresh(f):
+    """
+    Decorator to decode and validate a refresh token. Should only be used by refresh end point
+    """
     
     @wraps(f)
     def decorated_function(*args, **kwargs):
         error_response = Response("", status=400)
 
-        enc_token = get_token_from_headers(request.headers)
+        enc_token = get_token_from_cookie(request.cookies, key='refToken')
         if not enc_token:
             return redirect(url_for('index'))
         
         try:
-            jwt_headers, jwt_content = decode(enc_token, token_type='refresh')
+            decode(enc_token, token_type='refresh')
         except jwt.exceptions.InvalidTokenError:
             return error_response
         else:
             return f(*args, **kwargs)
 
     return decorated_function
+
+def make_token_response(access_token, refresh_token):
+    """
+    Make a 200 response with the Set-Cookie headers for both access and refresh tokens
+    """
+
+    resp = make_response("", 200)
+    resp.set_cookie(key='refToken',
+                    value=refresh_token,
+                    httponly=True, samesite='Lax', path='/token')
+    resp.set_cookie(key='accToken', 
+                    value=access_token, 
+                    httponly=True, samesite='Lax', path='/')
+    
+    return resp
