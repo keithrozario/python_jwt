@@ -54,14 +54,14 @@ def gen_tokens(subject):
 
 def get_rsa_public_key(jwt_headers=None):
     """ Gets the public key """
-    with open('jwtRS256.key.pub', 'rb') as f:
+    with open('instance/jwtRS256.key.pub', 'rb') as f:
         public_key = f.read()
 
     return public_key
 
 def get_rsa_private_key():
     """ Gets the private key """
-    with open ('jwtRS256.pem', 'rb') as f:
+    with open ('instance/jwtRS256.pem', 'rb') as f:
         private_key = f.read()
     
     return private_key

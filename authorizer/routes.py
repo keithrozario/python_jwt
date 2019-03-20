@@ -2,12 +2,12 @@ import time
 import uuid
 import json
 
-import jwt_helper
+from flask import Flask, request, jsonify, Response, make_response
+from authorizer import app
+
+from authorizer import jwt_helper
 import jwt.exceptions
 
-from flask import Flask, request, jsonify, Response, make_response
-
-app = Flask(__name__)
 response_headers = {
     "Cache-Control" : "no-cache, no-store, must-revalidate"
 }
@@ -46,7 +46,3 @@ def refresh_token():
     refresh_token, access_token = jwt_helper.gen_tokens(subject)
     resp = jwt_helper.make_token_response(access_token, refresh_token)
     return resp
-
-if __name__ == '__main_':
-
-    app.run(debug=True, port=5000)

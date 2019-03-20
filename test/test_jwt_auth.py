@@ -2,7 +2,7 @@ import requests
 import json
 import time
 
-import jwt_helper
+from authorizer import jwt_helper
 import jwt
 
 
