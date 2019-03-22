@@ -6,7 +6,10 @@ import jwt
 from flask import request, redirect, url_for, Response, make_response
 from functools import wraps
 
+import ldap
+from ldap import INVALID_CREDENTIALS, LDAPError, SCOPE_SUBTREE
 
+ldap_ip = '127.0.0.1'
 access_token_duration = 5
 refresh_token_duration = 24 * 60 * 60
 issuer = 'iss'
@@ -180,5 +183,27 @@ def make_token_response(access_token, refresh_token):
     resp.set_cookie(key='accToken', 
                     value=access_token, 
                     httponly=True, samesite='Lax', path='/')
+    
+    return resp
+
+
+def ldap_authenticate(username, password):
+    """ 
+    authenticates the username & password against an LDAP directory
+    """
+    resp = {}
+
+    try:
+        l = ldap.initialize(f'ldap://{ldap_ip}')
+        base_dn = 'dc=example,dc=org'
+        l.simple_bind_s(f'cn={username},{base_dn}',password)
+        result = l.search_s(base_dn,ldap.SCOPE_SUBTREE,f'cn={username}')
+    except ldap.INVALID_CREDENTIALS:
+        resp['status'] = 403
+    except ldap.LDAPError:
+        resp['status'] = 403
+    else:
+        resp['status'] = 200
+        resp['result'] = result
     
     return resp

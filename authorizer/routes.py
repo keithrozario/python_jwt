@@ -2,35 +2,32 @@ import time
 import uuid
 import json
 
-from flask import Flask, request, jsonify, Response, make_response
+from flask import Flask, request, jsonify, Response, make_response, render_template
 from authorizer import app
 
 from authorizer import jwt_helper
 import jwt.exceptions
 
-response_headers = {
-    "Cache-Control" : "no-cache, no-store, must-revalidate"
-}
+api_prefix = '/api/v1'
 
-@app.route('/', methods=['POST'])
-def index():
-    return Response("index.html", status=200, headers=response_headers)
+@app.route(f'{api_prefix}/login', methods=['POST'])
+    def login():
+    
+    try:
+        username, password = request.form['username'], request.form['password']
+    except KeyError:
+        return Response("", 500)
 
-@app.route('/protectedResource')
-@jwt_helper.authorizer
-def protected_resource():
-    return 'Protected_resource Woo Hoo!'
+    auth_result = jwt_helper.ldap_authenticate(username, password)
+    if auth_result['status'] == 200:
+        refresh_token, access_token = jwt_helper.gen_tokens(username)
+        resp = jwt_helper.make_token_response(access_token, refresh_token)
+    else:
+        resp = Response("",auth_result['status'])
 
-@app.route('/login', methods=['POST'])
-def login():
-
-    # check_login()
-    subject = request.form['psid']
-    refresh_token, access_token = jwt_helper.gen_tokens(subject)
-    resp = jwt_helper.make_token_response(access_token, refresh_token)
     return resp
 
-@app.route('/token', methods=['POST'])
+@app.route(f'{api_prefix}/token', methods=['POST'])
 @jwt_helper.authorizer_refresh
 def refresh_token():
     """
@@ -46,3 +43,12 @@ def refresh_token():
     refresh_token, access_token = jwt_helper.gen_tokens(subject)
     resp = jwt_helper.make_token_response(access_token, refresh_token)
     return resp
+
+@app.route('/login', methods=['GET'])
+def login_page():
+    return render_template('auth/login.html')
+
+@app.route('/protectedResource')
+@jwt_helper.authorizer
+def protected_resource():
+    return 'Protected_resource Woo Hoo!'

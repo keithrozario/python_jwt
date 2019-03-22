@@ -1,4 +1,5 @@
 import os
+import sys
 import authorizer
 import unittest
 import tempfile
@@ -9,7 +10,7 @@ from werkzeug.http import parse_cookie
 protected_uri = "/protectedResource"
 refresh_uri = "/token"
 
-class FlaskrTestCase(unittest.TestCase):
+class AuthorizerTestCase(unittest.TestCase):
 
     def setUp(self):
         authorizer.app.testing = True
@@ -18,8 +19,8 @@ class FlaskrTestCase(unittest.TestCase):
     def tearDown(self):
         pass
     
-    def login(self, id):
-        return self.app.post('/login', data=dict(psid=id))
+    def login(self, username, password):
+        return self.app.post('/login', data=dict(username=username, password=password))
     
     def getCookie(self, response, cookie_name):
         cookies = response.headers.getlist('Set-Cookie')
@@ -29,14 +30,47 @@ class FlaskrTestCase(unittest.TestCase):
                 return value
         return None
     
+    def test_login_wrong_parameters(self):
+        resp = self.app.post('/login')
+        assert resp.status_code == 500
+        cookies = resp.headers.getlist('Set-Cookie')
+        assert len(cookies) == 0
+
+        resp = self.app.post('/login', data=dict(username='admin'))
+        assert resp.status_code == 500
+        cookies = resp.headers.getlist('Set-Cookie')
+        assert len(cookies) == 0
+
+        resp = self.app.post('/login', data=dict(password='admin'))
+        assert resp.status_code == 500
+        cookies = resp.headers.getlist('Set-Cookie')
+        assert len(cookies) == 0
+    
     def test_protected_resource_fail(self):
         """ attempt protected resource with no cookies set """
         resp = self.app.get(protected_uri)
         assert resp.status_code == 302
     
-    def test_login(self):
+    def test_invalid_logins(self):
+        """ test invalid passwords """
+        resp = self.login('nothing', 'nothing')
+        assert resp.status_code == 403
+        cookies = resp.headers.getlist('Set-Cookie')
+        assert len(cookies) == 0
+        
+        resp = self.login('admin', 'wrongadmingpassword')
+        assert resp.status_code == 403
+        cookies = resp.headers.getlist('Set-Cookie')
+        assert len(cookies) == 0
+        
+        resp  = self.login('wrongadminuser', 'admin')
+        assert resp.status_code == 403
+        cookies = resp.headers.getlist('Set-Cookie')
+        assert len(cookies) == 0
+    
+    def test_login_cookies(self):
         """ checks if login grants two cookies and length of cookies > 10"""
-        resp = self.login('12345')
+        resp = self.login('admin', 'admin')
         cookies = resp.headers.getlist('Set-Cookie')
         assert len(cookies) == 2
         for cookie in ['accToken', 'refToken']:
@@ -45,7 +79,7 @@ class FlaskrTestCase(unittest.TestCase):
     
     def test_protected_resource_pass(self):
         """checks if we can access the protected resource with token"""
-        resp = self.login('12345')
+        resp = self.login('admin', 'admin')
         resp = self.app.get(protected_uri)
         assert resp.status_code == 200
 
