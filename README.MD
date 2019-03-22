@@ -8,3 +8,5 @@ You'll need an LDAP endpoint, consider using [this](https://github.com/osixia/do
 
 A admin/admin user will be created automatically.
 
+# This is still WIP!
+
