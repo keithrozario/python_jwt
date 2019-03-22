@@ -11,7 +11,7 @@ import jwt.exceptions
 api_prefix = '/api/v1'
 
 @app.route(f'{api_prefix}/login', methods=['POST'])
-    def login():
+def login():
     
     try:
         username, password = request.form['username'], request.form['password']

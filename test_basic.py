@@ -7,8 +7,9 @@ import time
 
 from werkzeug.http import parse_cookie
 
+login_uri = "/api/v1/login"
 protected_uri = "/protectedResource"
-refresh_uri = "/token"
+refresh_uri = "/api/v1/token"
 
 class AuthorizerTestCase(unittest.TestCase):
 
@@ -20,7 +21,7 @@ class AuthorizerTestCase(unittest.TestCase):
         pass
     
     def login(self, username, password):
-        return self.app.post('/login', data=dict(username=username, password=password))
+        return self.app.post(login_uri, data=dict(username=username, password=password))
     
     def getCookie(self, response, cookie_name):
         cookies = response.headers.getlist('Set-Cookie')
@@ -31,17 +32,17 @@ class AuthorizerTestCase(unittest.TestCase):
         return None
     
     def test_login_wrong_parameters(self):
-        resp = self.app.post('/login')
+        resp = self.app.post(login_uri)
         assert resp.status_code == 500
         cookies = resp.headers.getlist('Set-Cookie')
         assert len(cookies) == 0
 
-        resp = self.app.post('/login', data=dict(username='admin'))
+        resp = self.app.post(login_uri, data=dict(username='admin'))
         assert resp.status_code == 500
         cookies = resp.headers.getlist('Set-Cookie')
         assert len(cookies) == 0
 
-        resp = self.app.post('/login', data=dict(password='admin'))
+        resp = self.app.post(login_uri, data=dict(password='admin'))
         assert resp.status_code == 500
         cookies = resp.headers.getlist('Set-Cookie')
         assert len(cookies) == 0

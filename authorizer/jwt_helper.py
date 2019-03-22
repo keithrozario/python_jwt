@@ -129,7 +129,7 @@ def authorizer(f):
 
         enc_token = get_token_from_cookie(request.cookies, key='accToken')
         if not enc_token:
-            return redirect(url_for('index'))
+            return redirect(url_for('login'))
 
         try:
             decode(enc_token, token_type='access')
@@ -179,10 +179,10 @@ def make_token_response(access_token, refresh_token):
     resp = make_response("", 200)
     resp.set_cookie(key='refToken',
                     value=refresh_token,
-                    httponly=True, samesite='Lax', path='/token')
+                    httponly=True, samesite='Lax', path='/api/v1/token')
     resp.set_cookie(key='accToken', 
                     value=access_token, 
-                    httponly=True, samesite='Lax', path='/')
+                    httponly=True, samesite='Lax', path='/api/v1')
     
     return resp
 
@@ -201,7 +201,7 @@ def ldap_authenticate(username, password):
     except ldap.INVALID_CREDENTIALS:
         resp['status'] = 403
     except ldap.LDAPError:
-        resp['status'] = 403
+        resp['status'] = 400
     else:
         resp['status'] = 200
         resp['result'] = result
